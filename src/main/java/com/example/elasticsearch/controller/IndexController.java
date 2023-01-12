@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class IndexController {
     private final IndexService indexService;
 
-    @PostMapping("/reacreate")
+    @PostMapping("/recreate")
     public void recreateAllIndices(){
         indexService.recreateIndices(true);
     }
