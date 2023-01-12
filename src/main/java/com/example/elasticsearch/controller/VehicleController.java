@@ -1,9 +1,12 @@
 package com.example.elasticsearch.controller;
 
 import com.example.elasticsearch.document.Vehicle;
+import com.example.elasticsearch.search.SearchRequestDTO;
 import com.example.elasticsearch.service.VehicleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/vehicle")
@@ -19,5 +22,10 @@ public class VehicleController {
     @GetMapping("/{id}")
     public Vehicle findById(@PathVariable final String id) {
         return vehicleService.findById(id);
+    }
+
+    @PostMapping("/search")
+    public List<Vehicle> search(@RequestBody final SearchRequestDTO dto) {
+        return vehicleService.search(dto);
     }
 }
