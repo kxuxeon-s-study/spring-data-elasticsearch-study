@@ -1,7 +1,6 @@
 package com.example.elasticsearch.service;
 
 import com.example.elasticsearch.document.Vehicle;
-import com.example.elasticsearch.helper.Indices;
 import com.example.elasticsearch.search.SearchRequestDTO;
 import com.example.elasticsearch.search.util.SearchUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,7 +13,6 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.xcontent.XContentType;
 import org.slf4j.Logger;
@@ -27,6 +25,8 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
+import static com.example.elasticsearch.helper.Indices.VEHICLE_INDEX;
+
 @Service
 @RequiredArgsConstructor
 public class VehicleService {
@@ -37,7 +37,7 @@ public class VehicleService {
 
     public List<Vehicle> search(final SearchRequestDTO dto) {
         final SearchRequest request = SearchUtil.buildSearchRequest(
-                Indices.VEHICLE_INDEX, dto
+                VEHICLE_INDEX, dto
         );
 
         return searchInternal(request);
@@ -45,10 +45,51 @@ public class VehicleService {
 
     public List<Vehicle> getAllVehiclesCreateSince(final Date date) {
         final SearchRequest request = SearchUtil.buildSearchRequest(
-                Indices.VEHICLE_INDEX, "created", date
+                VEHICLE_INDEX, "created", date
         );
 
         return searchInternal(request);
+    }
+
+    public List<Vehicle> searchCreatedSince(SearchRequestDTO dto, Date date) {
+        SearchRequest request = SearchUtil.buildSearchRequest(
+                VEHICLE_INDEX,
+                dto,
+                date);
+        return searchInternal(request);
+    }
+
+    public void index(final Vehicle vehicle) {
+        try {
+            final String vehicleASString = MAPPER.writeValueAsString(vehicle);
+
+            IndexRequest request = new IndexRequest(VEHICLE_INDEX);
+            request.id(vehicle.getId());
+            request.source(vehicleASString, XContentType.JSON);
+
+            final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
+            if (response != null) {
+                response.status();
+            }
+        } catch (final Exception e) {
+            LOG.error(e.getMessage(), e);
+        }
+    }
+
+    public Vehicle findById(final String vehicleId) {
+        try {
+            final GetResponse documentFields = client.get(
+                    new GetRequest(VEHICLE_INDEX, vehicleId),
+                    RequestOptions.DEFAULT
+            );
+            if (documentFields == null || documentFields.isSourceEmpty()) {
+                return null;
+            }
+            return MAPPER.readValue(documentFields.getSourceAsString(), Vehicle.class);
+        } catch (IOException e) {
+            LOG.error(e.getMessage(), e);
+            return null;
+        }
     }
 
     private List<Vehicle> searchInternal(final SearchRequest request) {
@@ -74,36 +115,5 @@ public class VehicleService {
         }
     }
 
-    public Boolean save(final Vehicle vehicle) {
-        try {
-            final String vehicleASString = MAPPER.writeValueAsString(vehicle);
-
-            IndexRequest request = new IndexRequest(Indices.VEHICLE_INDEX);
-            request.id(vehicle.getId());
-            request.source(vehicleASString, XContentType.JSON);
-
-            final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
-            return response != null && response.status ().equals(RestStatus.OK);
-        } catch (final Exception e) {
-            LOG.error(e.getMessage(), e);
-            return false;
-        }
-    }
-
-    public Vehicle findById(final String vehicleId) {
-        try {
-            final GetResponse documentFields = client.get(
-                    new GetRequest(Indices.VEHICLE_INDEX, vehicleId),
-                    RequestOptions.DEFAULT
-            );
-            if (documentFields == null || documentFields.isSourceEmpty()) {
-                return null;
-            }
-            return MAPPER.readValue(documentFields.getSourceAsString(), Vehicle.class);
-        } catch (IOException e) {
-            LOG.error(e.getMessage(), e);
-            return null;
-        }
-    }
 
 }
